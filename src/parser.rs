@@ -1,6 +1,7 @@
 use nom::{Err, IResult};
-use nom::character::complete::{line_ending, space0};
+use nom::character::complete::{char, line_ending, not_line_ending, space0};
 use nom::error::{ErrorKind, ErrorKind::CrLf, ParseError};
+use nom::sequence::{preceded, terminated};
 
 enum TomlValue {
     Str(String),
@@ -15,17 +16,28 @@ enum TomlValue {
     InlineTable,
 }
 
-// whitespace
 fn whitespace<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
     space0(input)
 }
 
-// newline
 fn newline<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
     line_ending(input)
 }
 
-fn comment() {}
+/// A hash symbol marks the rest of the line as a comment, except when inside a string.
+/// ```Rust
+/// # This is a full-line comment
+/// key = "value"  # This is a comment at the end of a line
+/// another = "# This is not a comment"
+/// ```
+///
+/// Control characters other than tab (U+0000 to U+0008, U+000A to U+001F, U+007F) are not permitted
+/// in comments.
+/// ToDo: Test inline comments
+/// ToDo: Test for control characters
+fn comment<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
+    preceded(char('#'), terminated(not_line_ending, line_ending))(input)
+}
 
 fn integer() {}
 
@@ -52,5 +64,10 @@ mod tests {
         assert_eq!(newline::<(&str, ErrorKind)>("\nTest"), Ok(("Test", "\n")));
         assert_eq!(newline::<(&str, ErrorKind)>("\r\nTest"), Ok(("Test", "\r\n")));
         assert_eq!(newline::<(&str, ErrorKind)>("\rTest"), Err(Err::Error(("\rTest", CrLf))));
+    }
+
+    #[test]
+    fn test_comment() {
+        assert_eq!(comment::<(&str, ErrorKind)>("# This is a full-line comment\n"), Ok(("", " This is a full-line comment")));
     }
 }

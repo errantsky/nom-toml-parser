@@ -4,7 +4,7 @@
 
 - [x] whitespace
 - [x] newline
-- [] comment
+- [x] comment
 - [] boolean
 - [] integer
 - [] float

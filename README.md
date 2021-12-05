@@ -6,7 +6,7 @@
 - [x] newline
 - [x] comment
 - [] boolean
-- [] integer
+- [x] integer
 - [] float
 - [] local date time
 - [] offset date time

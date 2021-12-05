@@ -48,8 +48,8 @@ fn comment<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a s
     preceded(char('#'), terminated(not_line_ending, line_ending))(input)
 }
 
-// ToDo: prefixed can have leading zero
 // ToDo: have digit parser function as an argument to have a single `underscored_` func
+/// Matches a `_` separated sequence of digits and returns them without underscores
 fn underscored_decimal<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, String, E> {
     map(separated_list1(tag("_"), digit1), |vec| vec.concat())(input)
 }

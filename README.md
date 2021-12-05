@@ -3,7 +3,7 @@
 ## Feature Completion Status
 
 - [x] whitespace
-- [] newline
+- [x] newline
 - [] comment
 - [] boolean
 - [] integer

@@ -1,13 +1,14 @@
 use nom::branch::alt;
-use nom::bytes::complete::{is_a, tag};
+use nom::bytes::complete::{is_a, tag, take_while1};
 use nom::character::complete::{
     char, digit1, hex_digit1, line_ending, not_line_ending, oct_digit1, one_of, space0,
 };
-use nom::combinator::{map, opt};
+use nom::combinator::{map, map_res, opt};
 use nom::error::ParseError;
 use nom::IResult;
-use nom::multi::separated_list1;
-use nom::sequence::{pair, preceded, terminated};
+use nom::multi::{many1, separated_list1};
+use nom::number::complete::{double, f64};
+use nom::sequence::{pair, preceded, terminated, tuple};
 
 #[derive(Debug, PartialEq)]
 enum TomlValue {
@@ -110,7 +111,70 @@ fn integer<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlV
     ))(input)
 }
 
-fn float() {}
+fn underscored_float<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, String, E> {
+    map(separated_list1(tag("_"), is_a(".0123456789")), |vec| vec.into_iter().collect())(input)
+}
+
+fn exponential_float<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, f64, E> {
+    map(tuple((decimal_integer,
+               one_of("Ee"),
+               opt(
+                   one_of("-+")
+               ),
+               decimal_integer
+    )
+    ), |(left, e, sign, right)| {
+        match sign {
+            Some('-') => left as f64 / 10_f64.powi(right as i32),
+            _ => left as f64 * 10_f64.powi(right as i32)
+        }
+    },
+    )(input)
+}
+
+fn fractional_float<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, f64, E> {
+    map(
+        pair(opt(one_of("-+")), underscored_float),
+        |(sign, x)| match sign {
+            Some('-') => -1. * x.parse::<f64>().unwrap(),
+            _ => x.parse::<f64>().unwrap(),
+        },
+    )(input)
+}
+
+fn expo_frac_float<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, f64, E> {
+    map(tuple((fractional_float,
+               one_of("Ee"),
+               opt(
+                   one_of("-+")
+               ),
+               decimal_integer
+    )
+    ), |(left, e, sign, right)| {
+        match sign {
+            Some('-') => left / 10_f64.powi(right as i32),
+            _ => left * 10_f64.powi(right as i32)
+        }
+    },
+    )(input)
+}
+
+/// Negative NaNs do not seem to currently exist in Rust
+/// https://github.com/rust-lang/rust/issues/81261
+/// For now, all NaNs map to `f64::NAN`
+fn float<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlValue, E> {
+    // ToDo run more tests to verify parser ordering
+    alt((
+        map(tag("+inf"), |_| TomlValue::Float(f64::INFINITY)),
+        map(tag("-inf"), |_| TomlValue::Float(f64::NEG_INFINITY)),
+        map(tag("+nan"), |_| TomlValue::Float(f64::NAN)),
+        map(tag("-nan"), |_| TomlValue::Float(f64::NAN)),
+        map(fractional_float, TomlValue::Float),
+        map(exponential_float, TomlValue::Float),
+        map(expo_frac_float, TomlValue::Float),
+        map(double, TomlValue::Float),
+    ))(input)
+}
 
 fn boolean<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlValue, E> {
     alt((
@@ -283,5 +347,101 @@ mod tests {
             boolean::<(&str, ErrorKind)>("false"),
             Ok(("", TomlValue::Boolean(false)))
         );
+    }
+
+    #[test]
+    fn test_underscored_float() {
+        assert_eq!(underscored_float::<(&str, ErrorKind)>("1123.0"), Ok(("", "1123.0".to_string())));
+        assert_eq!(underscored_float::<(&str, ErrorKind)>(".1123"), Ok(("", ".1123".to_string())));
+        assert_eq!(underscored_float::<(&str, ErrorKind)>("11_23.0"), Ok(("", "1123.0".to_string())));
+    }
+
+    #[test]
+    fn test_exponential_float() {
+        assert_eq!(
+            exponential_float::<(&str, ErrorKind)>("5e+22"),
+            Ok(("", 5e+22))
+        );
+        assert_eq!(
+            exponential_float::<(&str, ErrorKind)>("1e06"),
+            Ok(("", 1e06))
+        );
+        assert_eq!(
+            exponential_float::<(&str, ErrorKind)>("-2E-2"),
+            Ok(("", -2E-2))
+        );
+    }
+
+    #[test]
+    fn test_expo_frac_float() {
+        assert_eq!(
+            expo_frac_float::<(&str, ErrorKind)>("6.626e-34"),
+            Ok(("", 6.626e-34))
+        );
+    }
+
+    #[test]
+    fn test_float() {
+        assert_eq!(
+            float::<(&str, ErrorKind)>("+1.0"),
+            Ok(("", TomlValue::Float(1.0)))
+        );
+        assert_eq!(
+            float::<(&str, ErrorKind)>("3.1415"),
+            Ok(("", TomlValue::Float(3.1415)))
+        );
+        assert_eq!(
+            float::<(&str, ErrorKind)>("-0.01"),
+            Ok(("", TomlValue::Float(-0.01)))
+        );
+
+        assert_eq!(
+            float::<(&str, ErrorKind)>("+0.0"),
+            Ok(("", TomlValue::Float(0.0)))
+        );
+        assert_eq!(
+            float::<(&str, ErrorKind)>("-0.0"),
+            Ok(("", TomlValue::Float(-0.0)))
+        );
+
+        match float::<(&str, ErrorKind)>("nan") {
+            Ok(("", TomlValue::Float(num))) => assert!(f64::is_nan(num)),
+            _ => panic!("nan testing went wrong."),
+        }
+
+        match float::<(&str, ErrorKind)>("+nan") {
+            Ok(("", TomlValue::Float(num))) => assert!(f64::is_nan(num)),
+            _ => panic!("nan testing went wrong."),
+        }
+
+        match float::<(&str, ErrorKind)>("-nan") {
+            Ok(("", TomlValue::Float(num))) => assert!(f64::is_nan(num)),
+            _ => panic!("nan testing went wrong."),
+        }
+
+        assert_eq!(
+            float::<(&str, ErrorKind)>("inf"),
+            Ok(("", TomlValue::Float(f64::INFINITY)))
+        );
+        assert_eq!(
+            float::<(&str, ErrorKind)>("+inf"),
+            Ok(("", TomlValue::Float(f64::INFINITY)))
+        );
+        assert_eq!(
+            float::<(&str, ErrorKind)>("-inf"),
+            Ok(("", TomlValue::Float(f64::NEG_INFINITY)))
+        );
+        // underscored floats
+        assert_eq!(
+            float::<(&str, ErrorKind)>("224_617.445_991_228"),
+            Ok(("", TomlValue::Float(224617.445991228)))
+        );
+
+
+        // ToDo: Add invalid floats
+        // # INVALID FLOATS
+        // invalid_float_1 = .7
+        // invalid_float_2 = 7.
+        // invalid_float_3 = 3.e+20
     }
 }

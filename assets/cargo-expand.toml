@@ -1,0 +1,41 @@
+[package]
+name = "cargo-expand"
+version = "1.0.10"
+authors = ["David Tolnay <dtolnay@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "Wrapper around rustc -Zunpretty=expanded. Shows the result of macro expansion and #[derive] expansion."
+repository = "https://github.com/dtolnay/cargo-expand"
+documentation = "https://github.com/dtolnay/cargo-expand"
+keywords = ["cargo", "subcommand", "expanded"]
+categories = ["development-tools::cargo-plugins", "development-tools::debugging"]
+edition = "2018"
+readme = "README.md"
+autotests = false
+
+[dependencies]
+atty = "0.2"
+proc-macro2 = "1.0"
+quote = { version = "1.0", default-features = false }
+serde = { version = "1.0", features = ["derive"] }
+structopt = "0.3"
+syn-select = "0.2"
+tempfile = "3.0"
+termcolor = "1.0"
+toml = "0.5"
+toolchain_find = "0.2"
+
+[dependencies.bat]
+version = "0.18"
+default-features = false
+features = ["paging", "regex-fancy"]
+
+[dependencies.syn]
+version = "1.0"
+default-features = false
+features = ["full", "parsing", "printing", "visit-mut"]
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[workspace]
+members = ["tests"]

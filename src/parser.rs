@@ -112,6 +112,13 @@ fn integer<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlV
 
 fn float() {}
 
+fn boolean<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlValue, E> {
+    alt((
+        map(tag("true"), |_| TomlValue::Boolean(true)),
+        map(tag("false"), |_| TomlValue::Boolean(false)),
+    ))(input)
+}
+
 fn string() {}
 
 // key value pair
@@ -264,6 +271,17 @@ mod tests {
         assert_eq!(
             integer::<(&str, ErrorKind)>("+0x0dead_beef"),
             Ok(("", TomlValue::Integer(0xDEADBEEF)))
+        );
+    }
+
+    fn test_boolean() {
+        assert_eq!(
+            boolean::<(&str, ErrorKind)>("true"),
+            Ok(("", TomlValue::Boolean(true)))
+        );
+        assert_eq!(
+            boolean::<(&str, ErrorKind)>("false"),
+            Ok(("", TomlValue::Boolean(false)))
         );
     }
 }

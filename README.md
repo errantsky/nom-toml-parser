@@ -5,7 +5,7 @@
 - [x] whitespace
 - [x] newline
 - [x] comment
-- [] boolean
+- [x] boolean
 - [x] integer
 - [] float
 - [] local date time

@@ -1,14 +1,16 @@
+use chrono::{Date, DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, ParseResult};
+use nom::{Err, IResult};
 use nom::branch::alt;
 use nom::bytes::complete::{is_a, tag, take_while1};
 use nom::character::complete::{
     char, digit1, hex_digit1, line_ending, not_line_ending, oct_digit1, one_of, space0,
 };
 use nom::combinator::{map, map_res, opt};
-use nom::error::ParseError;
-use nom::IResult;
+use nom::Err::Failure;
+use nom::error::{context, Error, ErrorKind, ParseError};
 use nom::multi::{many1, separated_list1};
 use nom::number::complete::{double, f64};
-use nom::sequence::{pair, preceded, terminated, tuple};
+use nom::sequence::{pair, preceded, separated_pair, terminated, tuple};
 
 #[derive(Debug, PartialEq)]
 enum TomlValue {
@@ -16,7 +18,7 @@ enum TomlValue {
     Integer(i64),
     Float(f64),
     Boolean(bool),
-    OffsetDateTime,
+    OffsetDateTime(DateTime<FixedOffset>),
     LocalDateTime,
     LocalDate,
     LocalTime,
@@ -112,23 +114,23 @@ fn integer<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlV
 }
 
 fn underscored_float<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, String, E> {
-    map(separated_list1(tag("_"), is_a(".0123456789")), |vec| vec.into_iter().collect())(input)
+    map(separated_list1(tag("_"), is_a(".0123456789")), |vec| {
+        vec.into_iter().collect()
+    })(input)
 }
 
 fn exponential_float<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, f64, E> {
-    map(tuple((decimal_integer,
-               one_of("Ee"),
-               opt(
-                   one_of("-+")
-               ),
-               decimal_integer
-    )
-    ), |(left, e, sign, right)| {
-        match sign {
+    map(
+        tuple((
+            decimal_integer,
+            one_of("Ee"),
+            opt(one_of("-+")),
+            decimal_integer,
+        )),
+        |(left, e, sign, right)| match sign {
             Some('-') => left as f64 / 10_f64.powi(right as i32),
-            _ => left as f64 * 10_f64.powi(right as i32)
-        }
-    },
+            _ => left as f64 * 10_f64.powi(right as i32),
+        },
     )(input)
 }
 
@@ -143,19 +145,17 @@ fn fractional_float<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a s
 }
 
 fn expo_frac_float<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, f64, E> {
-    map(tuple((fractional_float,
-               one_of("Ee"),
-               opt(
-                   one_of("-+")
-               ),
-               decimal_integer
-    )
-    ), |(left, e, sign, right)| {
-        match sign {
+    map(
+        tuple((
+            fractional_float,
+            one_of("Ee"),
+            opt(one_of("-+")),
+            decimal_integer,
+        )),
+        |(left, e, sign, right)| match sign {
             Some('-') => left / 10_f64.powi(right as i32),
-            _ => left * 10_f64.powi(right as i32)
-        }
-    },
+            _ => left * 10_f64.powi(right as i32),
+        },
     )(input)
 }
 
@@ -183,6 +183,24 @@ fn boolean<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlV
     ))(input)
 }
 
+// fn t_delimited_offset_datetime<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlValue, E> {
+// //     1979-05-27 07:32:00Z
+//     separated_pair(is_a('-0123456789), " ", is_a(':))
+// }
+
+fn offset_datetime<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlValue, E> {
+    match DateTime::parse_from_rfc3339(input) {
+        ParseResult::Ok(dt) => IResult::Ok(("", TomlValue::OffsetDateTime(dt))),
+        ParseResult::Err(e) => IResult::Ok(("", TomlValue::Integer(12))),
+    }
+}
+
+fn local_date() {}
+
+fn local_time() {}
+
+fn local_datetime() {}
+
 fn string() {}
 
 // key value pair
@@ -190,6 +208,7 @@ fn key_val_pair() {}
 
 #[cfg(test)]
 mod tests {
+    use chrono::Date;
     use nom::Err;
     use nom::error::ErrorKind;
     use nom::error::ErrorKind::CrLf;
@@ -351,9 +370,18 @@ mod tests {
 
     #[test]
     fn test_underscored_float() {
-        assert_eq!(underscored_float::<(&str, ErrorKind)>("1123.0"), Ok(("", "1123.0".to_string())));
-        assert_eq!(underscored_float::<(&str, ErrorKind)>(".1123"), Ok(("", ".1123".to_string())));
-        assert_eq!(underscored_float::<(&str, ErrorKind)>("11_23.0"), Ok(("", "1123.0".to_string())));
+        assert_eq!(
+            underscored_float::<(&str, ErrorKind)>("1123.0"),
+            Ok(("", "1123.0".to_string()))
+        );
+        assert_eq!(
+            underscored_float::<(&str, ErrorKind)>(".1123"),
+            Ok(("", ".1123".to_string()))
+        );
+        assert_eq!(
+            underscored_float::<(&str, ErrorKind)>("11_23.0"),
+            Ok(("", "1123.0".to_string()))
+        );
     }
 
     #[test]
@@ -437,11 +465,29 @@ mod tests {
             Ok(("", TomlValue::Float(224617.445991228)))
         );
 
-
         // ToDo: Add invalid floats
         // # INVALID FLOATS
         // invalid_float_1 = .7
         // invalid_float_2 = 7.
         // invalid_float_3 = 3.e+20
+    }
+
+    #[test]
+    fn test_offset_datetime() {
+        println!("{:?}", DateTime::parse_from_rfc3339("1979-05-27T07:32:00Z"));
+        println!(
+            "{:?}",
+            offset_datetime::<(&str, ErrorKind)>("1979-05-27T07:32:00Z")
+        );
+        println!(
+            "{:?}",
+            DateTime::parse_from_rfc3339("1979-05-27T00:32:00-07:00")
+        );
+        println!(
+            "{:?}",
+            DateTime::parse_from_rfc3339("1979-05-27T00:32:00.999999-07:00")
+        );
+        // The example below should be permitted based on RFC 3339 section 5.6, but it is not
+        println!("{:?}", DateTime::parse_from_rfc3339("1979-05-27 07:32:00Z"));
     }
 }

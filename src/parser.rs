@@ -1,16 +1,18 @@
 use chrono::{Date, DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime, ParseResult};
 use nom::{Err, IResult};
 use nom::branch::alt;
-use nom::bytes::complete::{is_a, tag, take_while1};
+use nom::bytes::complete::{is_a, tag, take_until1, take_while1};
 use nom::character::complete::{
-    char, digit1, hex_digit1, line_ending, not_line_ending, oct_digit1, one_of, space0,
+    alphanumeric1, char, digit1, hex_digit1, line_ending, none_of, not_line_ending, oct_digit1,
+    one_of, space0,
 };
-use nom::combinator::{map, map_res, opt};
+use nom::character::is_alphanumeric;
+use nom::combinator::{eof, map, map_res, opt, recognize};
 use nom::Err::Failure;
 use nom::error::{context, Error, ErrorKind, ParseError};
 use nom::multi::{many1, separated_list1};
 use nom::number::complete::{double, f64};
-use nom::sequence::{pair, preceded, separated_pair, terminated, tuple};
+use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 
 #[derive(Debug, PartialEq)]
 enum TomlValue {
@@ -25,6 +27,9 @@ enum TomlValue {
     Array,
     InlineTable,
 }
+
+#[derive(Debug, PartialEq)]
+struct KeyValue(String, TomlValue);
 
 fn whitespace<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
     space0(input)
@@ -114,9 +119,10 @@ fn integer<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlV
 }
 
 fn underscored_float<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, String, E> {
-    map(separated_list1(tag("_"), is_a(".0123456789")), |vec| {
-        vec.into_iter().collect()
-    })(input)
+    map(
+        tuple((underscored_decimal, tag("."), underscored_decimal)),
+        |(left, dot, right)| format!("{}{}{}", left, dot, right),
+    )(input)
 }
 
 fn exponential_float<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, f64, E> {
@@ -166,13 +172,14 @@ fn float<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlVal
     // ToDo run more tests to verify parser ordering
     alt((
         map(tag("+inf"), |_| TomlValue::Float(f64::INFINITY)),
+        map(tag("inf"), |_| TomlValue::Float(f64::INFINITY)),
         map(tag("-inf"), |_| TomlValue::Float(f64::NEG_INFINITY)),
         map(tag("+nan"), |_| TomlValue::Float(f64::NAN)),
+        map(tag("nan"), |_| TomlValue::Float(f64::NAN)),
         map(tag("-nan"), |_| TomlValue::Float(f64::NAN)),
         map(fractional_float, TomlValue::Float),
         map(exponential_float, TomlValue::Float),
         map(expo_frac_float, TomlValue::Float),
-        map(double, TomlValue::Float),
     ))(input)
 }
 
@@ -191,6 +198,7 @@ fn boolean<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlV
 fn offset_datetime<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlValue, E> {
     match DateTime::parse_from_rfc3339(input) {
         ParseResult::Ok(dt) => IResult::Ok(("", TomlValue::OffsetDateTime(dt))),
+        // ToDo: Find the right way to return a IResult error
         ParseResult::Err(e) => IResult::Ok(("", TomlValue::Integer(12))),
     }
 }
@@ -201,10 +209,73 @@ fn local_time() {}
 
 fn local_datetime() {}
 
-fn string() {}
+// ToDo: Check for allowed control sequences
+fn basic_string<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
+    preceded(tag("\""), take_until1("\""))(input)
+}
+
+// ToDo: line ending backslash
+fn multiline_basic_string<'a, E: ParseError<&'a str>>(
+    input: &'a str,
+) -> IResult<&'a str, &'a str, E> {
+    preceded(pair(tag("\"\"\""), opt(newline)), take_until1("\"\"\""))(input)
+}
+
+fn literal_string<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
+    preceded(char('\''), take_until1("'"))(input)
+}
+
+fn multiline_literal_string<'a, E: ParseError<&'a str>>(
+    input: &'a str,
+) -> IResult<&'a str, &'a str, E> {
+    preceded(pair(tag("'''"), opt(newline)), take_until1("'''"))(input)
+}
+
+fn string<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlValue, E> {
+    map(
+        alt((
+            basic_string,
+            multiline_basic_string,
+            literal_string,
+            multiline_literal_string,
+        )),
+        |s| TomlValue::Str(s.to_string()),
+    )(input)
+}
+
+fn toml_value<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlValue, E> {
+    alt((float, integer, boolean, string))(input)
+}
+
+fn bare_key<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
+    is_a("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-")(input)
+}
+
+fn dotted_key<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
+    recognize(separated_list1(tag("."), alt((bare_key, quoted_key))))(input)
+}
+
+fn quoted_key<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
+    alt((literal_string, basic_string))(input)
+}
+
+fn key<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
+    alt((dotted_key, quoted_key, bare_key))(input)
+}
 
 // key value pair
-fn key_val_pair() {}
+fn key_val_pair<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, KeyValue, E> {
+    map(
+        terminated(
+            preceded(
+                whitespace,
+                separated_pair(key, tuple((whitespace, tag("="), whitespace)), toml_value),
+            ),
+            pair(whitespace, alt((eof, newline))),
+        ),
+        |(k, v)| KeyValue(k.to_string(), v),
+    )(input)
+}
 
 #[cfg(test)]
 mod tests {
@@ -212,6 +283,8 @@ mod tests {
     use nom::Err;
     use nom::error::ErrorKind;
     use nom::error::ErrorKind::CrLf;
+
+    use crate::parser::TomlValue::{Boolean, Float, Integer};
 
     use super::*;
 
@@ -374,10 +447,11 @@ mod tests {
             underscored_float::<(&str, ErrorKind)>("1123.0"),
             Ok(("", "1123.0".to_string()))
         );
-        assert_eq!(
-            underscored_float::<(&str, ErrorKind)>(".1123"),
-            Ok(("", ".1123".to_string()))
-        );
+        // should throw and error
+        // assert_eq!(
+        //     underscored_float::<(&str, ErrorKind)>(".1123"),
+        //     Ok(("", ".1123".to_string()))
+        // );
         assert_eq!(
             underscored_float::<(&str, ErrorKind)>("11_23.0"),
             Ok(("", "1123.0".to_string()))
@@ -489,5 +563,26 @@ mod tests {
         );
         // The example below should be permitted based on RFC 3339 section 5.6, but it is not
         println!("{:?}", DateTime::parse_from_rfc3339("1979-05-27 07:32:00Z"));
+    }
+
+    #[test]
+    fn test_key_val_pair() {
+        // ToDo: escaped strings are buggy
+        assert_eq!(
+            key_val_pair::<(&str, ErrorKind)>("key = true"),
+            Ok(("", KeyValue("key".to_string(), Boolean(true))))
+        );
+        assert_eq!(
+            key_val_pair::<(&str, ErrorKind)>("key = false"),
+            Ok(("", KeyValue("key".to_string(), Boolean(false))))
+        );
+        assert_eq!(
+            key_val_pair::<(&str, ErrorKind)>("key = 12"),
+            Ok(("", KeyValue("key".to_string(), Integer(12))))
+        );
+        assert_eq!(
+            key_val_pair::<(&str, ErrorKind)>("key = 12.2"),
+            Ok(("", KeyValue("key".to_string(), Float(12.2))))
+        );
     }
 }

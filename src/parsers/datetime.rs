@@ -1,6 +1,6 @@
 use chrono::{DateTime, ParseResult};
-use nom::error::ParseError;
-use nom::IResult;
+use nom::{Err, IResult};
+use nom::error::{Error, ErrorKind, ParseError};
 
 use crate::parsers::TomlValue;
 
@@ -9,11 +9,11 @@ use crate::parsers::TomlValue;
 //     separated_pair(is_a('-0123456789), " ", is_a(':))
 // }
 
-fn offset_datetime<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlValue, E> {
+fn offset_datetime(input: &str) -> IResult<&str, TomlValue, Error<&str>> {
     match DateTime::parse_from_rfc3339(input) {
         ParseResult::Ok(dt) => IResult::Ok(("", TomlValue::OffsetDateTime(dt))),
-        // ToDo: Find the right way to return a IResult error
-        ParseResult::Err(e) => IResult::Ok(("", TomlValue::Integer(12))),
+        // https://stackoverflow.com/a/70240688/14311849
+        ParseResult::Err(e) => Err(Err::Error(Error::from_error_kind(input, ErrorKind::Fail))),
     }
 }
 
@@ -34,7 +34,7 @@ mod tests_datetime {
         println!("{:?}", DateTime::parse_from_rfc3339("1979-05-27T07:32:00Z"));
         println!(
             "{:?}",
-            offset_datetime::<(&str, ErrorKind)>("1979-05-27T07:32:00Z")
+            offset_datetime("1979-05-27T07:32:00Z")
         );
         println!(
             "{:?}",

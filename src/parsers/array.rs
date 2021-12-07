@@ -1,18 +1,19 @@
-use crate::parsers::key_value::key;
-use crate::parsers::whitespace::whitespace;
-use crate::parsers::{toml_value, TomlValue};
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::combinator::map;
 use nom::error::ParseError;
+use nom::IResult;
 use nom::multi::separated_list1;
 use nom::sequence::{delimited, pair, separated_pair, tuple};
-use nom::IResult;
+
+use crate::parsers::{toml_value, TomlValue};
+use crate::parsers::key_value::key;
+use crate::parsers::whitespace::whitespace;
 
 // ToDo: Should key be a concrete type?
 // ToDo: Should arrays be a subset of key value pairs?
 // ToDo: Pretty printing
-
+// ToDo: Add multiline array definition support
 /// Stores any data that a TOML array should can store, including other arrays
 /// So, each item in an array is either a single value, such as a integer, or another array.
 /// `ArrayValue` stores both types. For single values, the `value` optional field holds a
@@ -75,8 +76,9 @@ fn array<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, Array, 
 
 #[cfg(test)]
 mod tests_array {
-    use super::*;
     use nom::error::ErrorKind;
+
+    use super::*;
 
     #[test]
     fn test_no_whitespace_array_value() {

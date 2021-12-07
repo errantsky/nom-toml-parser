@@ -16,6 +16,7 @@ mod float;
 mod integer;
 mod key_value;
 mod string;
+mod table;
 mod whitespace;
 
 // ToDo: find out how test files should be organized

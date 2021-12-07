@@ -18,9 +18,9 @@ mod key_value;
 mod string;
 mod whitespace;
 
-// ToDo: divide parsers into separate files
 // ToDo: find out how test files should be organized
 // ToDo: should common imports be declared at the mod.rs file?
+// ToDo: add documentation
 
 fn toml_value<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlValue, E> {
     alt((float, integer, boolean, string))(input)
@@ -36,6 +36,6 @@ pub(crate) enum TomlValue {
     LocalDateTime,
     LocalDate,
     LocalTime,
-    Array,
-    InlineTable,
+    // Array,
+    // InlineTable,
 }

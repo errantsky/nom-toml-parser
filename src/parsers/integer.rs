@@ -3,9 +3,9 @@ use nom::bytes::complete::{is_a, tag};
 use nom::character::complete::{char, digit1, hex_digit1, oct_digit1, one_of};
 use nom::combinator::{map, opt};
 use nom::error::ParseError;
-use nom::IResult;
 use nom::multi::separated_list1;
 use nom::sequence::{pair, preceded};
+use nom::IResult;
 
 use crate::parsers::TomlValue;
 
@@ -83,7 +83,7 @@ mod tests_integer {
 
     use super::*;
 
-// ToDo: Add failing tests
+    // ToDo: Add failing tests
 
     #[test]
     fn test_underscored_decimal_number() {

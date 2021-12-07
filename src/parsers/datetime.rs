@@ -1,6 +1,6 @@
 use chrono::{DateTime, ParseResult};
-use nom::{Err, IResult};
 use nom::error::{Error, ErrorKind, ParseError};
+use nom::{Err, IResult};
 
 use crate::parsers::TomlValue;
 
@@ -13,6 +13,7 @@ fn offset_datetime(input: &str) -> IResult<&str, TomlValue, Error<&str>> {
     match DateTime::parse_from_rfc3339(input) {
         ParseResult::Ok(dt) => IResult::Ok(("", TomlValue::OffsetDateTime(dt))),
         // https://stackoverflow.com/a/70240688/14311849
+        // ToDo: extract chrono's error text and use it
         ParseResult::Err(e) => Err(Err::Error(Error::from_error_kind(input, ErrorKind::Fail))),
     }
 }
@@ -32,10 +33,7 @@ mod tests_datetime {
     #[test]
     fn test_offset_datetime() {
         println!("{:?}", DateTime::parse_from_rfc3339("1979-05-27T07:32:00Z"));
-        println!(
-            "{:?}",
-            offset_datetime("1979-05-27T07:32:00Z")
-        );
+        println!("{:?}", offset_datetime("1979-05-27T07:32:00Z"));
         println!(
             "{:?}",
             DateTime::parse_from_rfc3339("1979-05-27T00:32:00-07:00")

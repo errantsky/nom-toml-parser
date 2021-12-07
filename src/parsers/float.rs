@@ -3,8 +3,8 @@ use nom::bytes::complete::tag;
 use nom::character::complete::one_of;
 use nom::combinator::{map, opt};
 use nom::error::ParseError;
-use nom::IResult;
 use nom::sequence::{pair, tuple};
+use nom::IResult;
 
 use crate::parsers::integer::{decimal_integer, underscored_decimal};
 use crate::parsers::TomlValue;

@@ -3,8 +3,8 @@ use nom::bytes::complete::{tag, take_until1};
 use nom::character::complete::{char, line_ending};
 use nom::combinator::{map, opt};
 use nom::error::ParseError;
-use nom::IResult;
 use nom::sequence::{pair, preceded};
+use nom::IResult;
 
 use crate::parsers::TomlValue;
 

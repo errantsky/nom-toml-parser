@@ -11,9 +11,9 @@ pub(crate) fn whitespace<'a, E: ParseError<&'a str>>(
 #[cfg(test)]
 mod tests_whitespace {
     use nom::character::complete::line_ending;
-    use nom::Err;
     use nom::error::ErrorKind;
     use nom::error::ErrorKind::CrLf;
+    use nom::Err;
 
     use super::*;
 

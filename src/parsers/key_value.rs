@@ -3,13 +3,13 @@ use nom::bytes::complete::{is_a, tag};
 use nom::character::complete::line_ending;
 use nom::combinator::{eof, map, recognize};
 use nom::error::ParseError;
-use nom::IResult;
 use nom::multi::separated_list1;
 use nom::sequence::{pair, preceded, separated_pair, terminated, tuple};
+use nom::IResult;
 
-use crate::parsers::{toml_value, TomlValue};
 use crate::parsers::string::{basic_string, literal_string};
 use crate::parsers::whitespace::whitespace;
+use crate::parsers::{toml_value, TomlValue};
 
 #[derive(Debug, PartialEq)]
 struct KeyValue(String, TomlValue);
@@ -26,11 +26,10 @@ fn quoted_key<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'
     alt((literal_string, basic_string))(input)
 }
 
-fn key<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
+pub(crate) fn key<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
     alt((dotted_key, quoted_key, bare_key))(input)
 }
 
-// key value pair
 fn key_val_pair<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, KeyValue, E> {
     map(
         terminated(

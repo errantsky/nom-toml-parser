@@ -1,7 +1,7 @@
 use nom::character::complete::{char, line_ending, not_line_ending};
 use nom::error::ParseError;
-use nom::IResult;
 use nom::sequence::{preceded, terminated};
+use nom::IResult;
 
 /// A hash symbol marks the rest of the line as a comment, except when inside a string.
 /// ```Rust

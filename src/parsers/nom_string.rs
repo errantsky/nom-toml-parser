@@ -58,8 +58,8 @@ where
 
 /// Parse an escaped character: \n, \t, \r, \u{00AC}, etc.
 fn parse_escaped_char<'a, E>(input: &'a str) -> IResult<&'a str, char, E>
-    where
-        E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
+where
+    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
     preceded(
         char('\\'),

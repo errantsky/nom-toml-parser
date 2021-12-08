@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::line_ending;
@@ -5,10 +7,12 @@ use nom::combinator::{eof, map, opt, peek};
 use nom::error::{FromExternalError, ParseError};
 use nom::IResult;
 use nom::multi::{many0, many1, separated_list0, separated_list1};
-use nom::sequence::{delimited, pair, preceded, terminated};
+use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
 
+use crate::parsers::{toml_value, TomlValue};
 use crate::parsers::comment::comment;
 use crate::parsers::key_value::{key, key_val_pair, KeyValue};
+use crate::parsers::whitespace::{sp, whitespace};
 
 // ToDo: Fix string key val support
 
@@ -36,7 +40,7 @@ pub(crate) struct Table {
 }
 
 // ToDo: does terminate consume the termination slice?
-pub(crate) fn table<
+pub(crate) fn full_table<
     'a,
     E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 >(
@@ -64,8 +68,8 @@ mod tests_table {
     use nom::character::complete::digit1;
     use nom::error::ErrorKind;
 
+    use crate::parsers::array::Array;
     use crate::parsers::TomlValue;
-    use crate::parsers::TomlValue::{Boolean, Integer};
 
     use super::*;
 
@@ -85,8 +89,8 @@ mod tests_table {
             Ok((
                 "",
                 vec![
-                    KeyValue("key1".to_string(), Boolean(false)),
-                    KeyValue("key2".to_string(), Integer(123)),
+                    KeyValue("key1".to_string(), TomlValue::Boolean(false)),
+                    KeyValue("key2".to_string(), TomlValue::Integer(123)),
                 ]
             ))
         )
@@ -96,7 +100,7 @@ mod tests_table {
     fn test_empty_table() {
         let input = read_to_string("assets/empty-table.toml").unwrap();
         assert_eq!(
-            table::<(&str, ErrorKind)>(&input),
+            full_table::<(&str, ErrorKind)>(&input),
             Ok((
                 "",
                 Table {
@@ -112,7 +116,7 @@ mod tests_table {
         let input = read_to_string("assets/single-table.toml").unwrap();
 
         assert_eq!(
-            table::<(&str, ErrorKind)>(&input),
+            full_table::<(&str, ErrorKind)>(&input),
             Ok((
                 "",
                 Table {
@@ -128,7 +132,7 @@ mod tests_table {
         let input = read_to_string("assets/table-key-last-line.toml").unwrap();
 
         assert_eq!(
-            table::<(&str, ErrorKind)>(&input),
+            full_table::<(&str, ErrorKind)>(&input),
             Ok((
                 "",
                 Table {
@@ -144,7 +148,7 @@ mod tests_table {
         let input = read_to_string("assets/sing-string-table.toml").unwrap();
 
         assert_eq!(
-            table::<(&str, ErrorKind)>(&input),
+            full_table::<(&str, ErrorKind)>(&input),
             Ok((
                 "",
                 Table {

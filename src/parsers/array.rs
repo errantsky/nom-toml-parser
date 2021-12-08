@@ -16,20 +16,13 @@ use crate::parsers::whitespace::whitespace;
 // ToDo: Add multiline array definition support
 /// Stores any data that a TOML array should can store, including other arrays
 /// So, each item in an array is either a single value, such as a integer, or another array.
-/// `ArrayValue` stores both types. For single values, the `value` optional field holds a
+/// `Array` stores both types. For single values, the `value` optional field holds a
 /// `TomlValue` and sets the `children` to `None`, while an array item sets `value` to `None`
 ///  and stores array data in the `children` optional field.
 #[derive(Debug, PartialEq)]
-struct ArrayValue {
-    value: Option<TomlValue>,
-    children: Option<Vec<ArrayValue>>,
-}
-
-/// Stores an TOML array and the key assigned to it
-/// * `value` holds array data, which can include other arrays and `TomlValue`s
-#[derive(Debug, PartialEq)]
 pub(crate) struct Array {
-    value: ArrayValue,
+    pub(crate) value: Option<TomlValue>,
+    pub(crate) children: Option<Vec<Array>>,
 }
 
 /// Parses array items that are not arrays themselves
@@ -38,8 +31,8 @@ fn array_toml_value<
     E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 >(
     input: &'a str,
-) -> IResult<&'a str, ArrayValue, E> {
-    map(toml_value, |toml_val| ArrayValue {
+) -> IResult<&'a str, Array, E> {
+    map(toml_value, |toml_val| Array {
         value: Some(toml_val),
         children: None,
     })(input)
@@ -50,7 +43,7 @@ fn array_toml_value<
 /// A recursive parser to parses the right side of a TOML array definition such as "name = [1,2,3]"
 fn array_value<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(
     input: &'a str,
-) -> IResult<&'a str, ArrayValue, E> {
+) -> IResult<&'a str, Array, E> {
     map(
         delimited(
             pair(tag("["), whitespace),
@@ -61,7 +54,7 @@ fn array_value<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num:
             ),
             pair(whitespace, tag("]")),
         ),
-        |array_values| ArrayValue {
+        |array_values| Array {
             value: None,
             children: Some(array_values),
         },
@@ -75,9 +68,7 @@ pub(crate) fn array<
 >(
     input: &'a str,
 ) -> IResult<&'a str, TomlValue, E> {
-    map(array_value, |v| {
-        TomlValue::Array(Box::new(Array { value: v }))
-    })(input)
+    map(array_value, |v| TomlValue::Array(Box::new(v)))(input)
 }
 
 #[cfg(test)]
@@ -92,20 +83,20 @@ mod tests_array {
             array_value::<(&str, ErrorKind)>("[1,2,3]"),
             Ok((
                 "",
-                ArrayValue {
+                Array {
                     value: None,
                     children: Some(vec![
-                        ArrayValue {
+                        Array {
                             value: Some(TomlValue::Integer(1)),
-                            children: None
+                            children: None,
                         },
-                        ArrayValue {
+                        Array {
                             value: Some(TomlValue::Integer(2)),
-                            children: None
+                            children: None,
                         },
-                        ArrayValue {
+                        Array {
                             value: Some(TomlValue::Integer(3)),
-                            children: None
+                            children: None,
                         },
                     ],)
                 }
@@ -119,20 +110,20 @@ mod tests_array {
             array_value::<(&str, ErrorKind)>("[ 1, 2, 3 ]"),
             Ok((
                 "",
-                ArrayValue {
+                Array {
                     value: None,
                     children: Some(vec![
-                        ArrayValue {
+                        Array {
                             value: Some(TomlValue::Integer(1)),
-                            children: None
+                            children: None,
                         },
-                        ArrayValue {
+                        Array {
                             value: Some(TomlValue::Integer(2)),
-                            children: None
+                            children: None,
                         },
-                        ArrayValue {
+                        Array {
                             value: Some(TomlValue::Integer(3)),
-                            children: None
+                            children: None,
                         },
                     ],)
                 }
@@ -147,23 +138,21 @@ mod tests_array {
             Ok((
                 "",
                 TomlValue::Array(Box::new(Array {
-                    value: ArrayValue {
-                        value: None,
-                        children: Some(vec![
-                            ArrayValue {
-                                value: Some(TomlValue::Integer(1)),
-                                children: None,
-                            },
-                            ArrayValue {
-                                value: Some(TomlValue::Integer(2)),
-                                children: None,
-                            },
-                            ArrayValue {
-                                value: Some(TomlValue::Integer(3)),
-                                children: None,
-                            },
-                        ]),
-                    }
+                    value: None,
+                    children: Some(vec![
+                        Array {
+                            value: Some(TomlValue::Integer(1)),
+                            children: None,
+                        },
+                        Array {
+                            value: Some(TomlValue::Integer(2)),
+                            children: None,
+                        },
+                        Array {
+                            value: Some(TomlValue::Integer(3)),
+                            children: None,
+                        },
+                    ]),
                 }))
             ))
         );
@@ -177,23 +166,21 @@ mod tests_array {
             Ok((
                 "",
                 TomlValue::Array(Box::new(Array {
-                    value: ArrayValue {
-                        value: None,
-                        children: Some(vec![
-                            ArrayValue {
-                                value: Some(TomlValue::Float(0.1)),
-                                children: None,
-                            },
-                            ArrayValue {
-                                value: Some(TomlValue::Float(0.2)),
-                                children: None,
-                            },
-                            ArrayValue {
-                                value: Some(TomlValue::Float(0.5)),
-                                children: None,
-                            },
-                        ]),
-                    }
+                    value: None,
+                    children: Some(vec![
+                        Array {
+                            value: Some(TomlValue::Float(0.1)),
+                            children: None,
+                        },
+                        Array {
+                            value: Some(TomlValue::Float(0.2)),
+                            children: None,
+                        },
+                        Array {
+                            value: Some(TomlValue::Float(0.5)),
+                            children: None,
+                        },
+                    ]),
                 }))
             ))
         );
@@ -207,35 +194,33 @@ mod tests_array {
             Ok((
                 "",
                 TomlValue::Array(Box::new(Array {
-                    value: ArrayValue {
-                        value: None,
-                        children: Some(vec![
-                            ArrayValue {
-                                value: Some(TomlValue::Float(0.1)),
-                                children: None,
-                            },
-                            ArrayValue {
-                                value: Some(TomlValue::Float(0.2)),
-                                children: None
-                            },
-                            ArrayValue {
-                                value: Some(TomlValue::Float(0.5)),
-                                children: None
-                            },
-                            ArrayValue {
-                                value: Some(TomlValue::Integer(1)),
-                                children: None
-                            },
-                            ArrayValue {
-                                value: Some(TomlValue::Integer(2)),
-                                children: None,
-                            },
-                            ArrayValue {
-                                value: Some(TomlValue::Integer(5)),
-                                children: None,
-                            },
-                        ])
-                    }
+                    value: None,
+                    children: Some(vec![
+                        Array {
+                            value: Some(TomlValue::Float(0.1)),
+                            children: None,
+                        },
+                        Array {
+                            value: Some(TomlValue::Float(0.2)),
+                            children: None,
+                        },
+                        Array {
+                            value: Some(TomlValue::Float(0.5)),
+                            children: None,
+                        },
+                        Array {
+                            value: Some(TomlValue::Integer(1)),
+                            children: None,
+                        },
+                        Array {
+                            value: Some(TomlValue::Integer(2)),
+                            children: None,
+                        },
+                        Array {
+                            value: Some(TomlValue::Integer(5)),
+                            children: None,
+                        },
+                    ]),
                 }))
             ))
         );
@@ -248,41 +233,39 @@ mod tests_array {
             Ok((
                 "",
                 TomlValue::Array(Box::new(Array {
-                    value: ArrayValue {
-                        value: None,
-                        children: Some(vec![
-                            ArrayValue {
-                                value: None,
-                                children: Some(vec![
-                                    ArrayValue {
-                                        value: Some(TomlValue::Integer(1)),
-                                        children: None,
-                                    },
-                                    ArrayValue {
-                                        value: Some(TomlValue::Integer(2)),
-                                        children: None,
-                                    },
-                                ])
-                            },
-                            ArrayValue {
-                                value: None,
-                                children: Some(vec![
-                                    ArrayValue {
-                                        value: Some(TomlValue::Integer(3)),
-                                        children: None,
-                                    },
-                                    ArrayValue {
-                                        value: Some(TomlValue::Integer(4)),
-                                        children: None,
-                                    },
-                                    ArrayValue {
-                                        value: Some(TomlValue::Integer(5)),
-                                        children: None,
-                                    },
-                                ])
-                            },
-                        ])
-                    }
+                    value: None,
+                    children: Some(vec![
+                        Array {
+                            value: None,
+                            children: Some(vec![
+                                Array {
+                                    value: Some(TomlValue::Integer(1)),
+                                    children: None,
+                                },
+                                Array {
+                                    value: Some(TomlValue::Integer(2)),
+                                    children: None,
+                                },
+                            ]),
+                        },
+                        Array {
+                            value: None,
+                            children: Some(vec![
+                                Array {
+                                    value: Some(TomlValue::Integer(3)),
+                                    children: None,
+                                },
+                                Array {
+                                    value: Some(TomlValue::Integer(4)),
+                                    children: None,
+                                },
+                                Array {
+                                    value: Some(TomlValue::Integer(5)),
+                                    children: None,
+                                },
+                            ]),
+                        },
+                    ]),
                 }))
             ))
         );
@@ -294,18 +277,18 @@ mod tests_array {
             array_value::<(&str, ErrorKind)>(r#"["red","yellow","green"]"#),
             Ok((
                 "",
-                ArrayValue {
+                Array {
                     value: None,
                     children: Some(vec![
-                        ArrayValue {
+                        Array {
                             value: Some(TomlValue::Str("red".to_string())),
                             children: None,
                         },
-                        ArrayValue {
+                        Array {
                             value: Some(TomlValue::Str("yellow".to_string())),
                             children: None,
                         },
-                        ArrayValue {
+                        Array {
                             value: Some(TomlValue::Str("green".to_string())),
                             children: None,
                         },
@@ -322,24 +305,22 @@ mod tests_array {
             Ok((
                 "",
                 TomlValue::Array(Box::new(Array {
-                    value: ArrayValue {
-                        value: None,
-                        children: Some(vec![
-                            ArrayValue {
-                                value: Some(TomlValue::Str("red".to_string())),
-                                children: None,
-                            },
-                            ArrayValue {
-                                value: Some(TomlValue::Str("yellow".to_string())),
-                                children: None,
-                            },
-                            ArrayValue {
-                                value: Some(TomlValue::Str("green".to_string())),
-                                children: None,
-                            },
-                        ]),
-                    },
-                }))
+                    value: None,
+                    children: Some(vec![
+                        Array {
+                            value: Some(TomlValue::Str("red".to_string())),
+                            children: None,
+                        },
+                        Array {
+                            value: Some(TomlValue::Str("yellow".to_string())),
+                            children: None,
+                        },
+                        Array {
+                            value: Some(TomlValue::Str("green".to_string())),
+                            children: None,
+                        },
+                    ]),
+                }, ))
             ))
         );
     }
@@ -350,6 +331,11 @@ mod tests_array {
             "{:?}",
             array::<(&str, ErrorKind)>(r#"[ [ 1, 2 ], ["a", "b", "c"] ]"#)
         );
+    }
+
+    #[test]
+    fn test_single_string_array() {
+        println!("{:?}", array::<(&str, ErrorKind)>(r#"["derive"]"#));
     }
 
     // #[test]

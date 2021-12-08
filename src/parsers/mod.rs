@@ -13,8 +13,9 @@ use float::float;
 use integer::integer;
 use key_value::key_val_pair;
 use nom_string::parse_string;
-use table::table;
+use table::full_table;
 
+use crate::parsers::inline_table::{inline_table, InlineTable};
 use crate::parsers::key_value::KeyValue;
 use crate::parsers::table::Table;
 use crate::parsers::whitespace::sp;
@@ -24,6 +25,7 @@ mod boolean;
 mod comment;
 mod datetime;
 mod float;
+mod inline_table;
 mod integer;
 mod key_value;
 mod nom_string;
@@ -45,6 +47,7 @@ fn toml_value<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::
         map(parse_string, |s| TomlValue::Str(s)),
         // datetime,
         array,
+        inline_table,
     ))(input)
 }
 
@@ -59,18 +62,13 @@ pub(crate) enum TomlValue {
     LocalDate(NaiveDate),
     LocalTime(NaiveTime),
     Array(Box<Array>),
-    InlineTable,
+    InlineTable(Box<InlineTable>),
 }
-
-// enum TomlType {
-//     Table(Table),
-//     KeyValPair(KeyValue),
-// }
 
 fn cargo_root<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(
     input: &'a str,
 ) -> IResult<&'a str, Vec<Table>, E> {
-    delimited(sp, many0(table), opt(sp))(input)
+    delimited(sp, many0(full_table), opt(sp))(input)
 }
 
 #[cfg(test)]

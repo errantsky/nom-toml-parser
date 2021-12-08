@@ -76,5 +76,9 @@ mod tests_key_value {
             key_val_pair::<(&str, ErrorKind)>("key = 12.2"),
             Ok(("", KeyValue("key".to_string(), TomlValue::Float(12.2))))
         );
+        assert_eq!(
+            key_val_pair::<(&str, ErrorKind)>(r#"key = "This is a string""#),
+            Ok(("", KeyValue("key".to_string(), TomlValue::Str(String::from("This is a string")))))
+        );
     }
 }

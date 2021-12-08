@@ -286,69 +286,69 @@ mod tests_array {
         );
     }
 
-    // #[test]
-    // fn test_no_whitespace_string_array() {
-    //     assert_eq!(
-    //         array_value::<(&str, ErrorKind)>(r#"["red","yellow","green"]"#),
-    //         Ok((
-    //             "",
-    //             ArrayValue {
-    //                 value: None,
-    //                 children: Some(vec![
-    //                     ArrayValue {
-    //                         value: Some(TomlValue::Str("red".to_string())),
-    //                         children: None
-    //                     },
-    //                     ArrayValue {
-    //                         value: Some(TomlValue::Str("yellow".to_string())),
-    //                         children: None
-    //                     },
-    //                     ArrayValue {
-    //                         value: Some(TomlValue::Str("green".to_string())),
-    //                         children: None
-    //                     },
-    //                 ],)
-    //             }
-    //         ))
-    //     );
-    // }
+    #[test]
+    fn test_no_whitespace_string_array() {
+        assert_eq!(
+            array_value::<(&str, ErrorKind)>(r#"["red","yellow","green"]"#),
+            Ok((
+                "",
+                ArrayValue {
+                    value: None,
+                    children: Some(vec![
+                        ArrayValue {
+                            value: Some(TomlValue::Str("red".to_string())),
+                            children: None,
+                        },
+                        ArrayValue {
+                            value: Some(TomlValue::Str("yellow".to_string())),
+                            children: None,
+                        },
+                        ArrayValue {
+                            value: Some(TomlValue::Str("green".to_string())),
+                            children: None,
+                        },
+                    ], ),
+                }
+            ))
+        );
+    }
 
-    // #[test]
-    // fn test_basic_string_array() {
-    //     println!("{:?}", array::<(&str, ErrorKind)>(r#"colors = [ "red", "yellow", "green" ]"#));
-    // assert_eq!(
-    //     array::<(&str, ErrorKind)>(r#"colors = [ "red", "yellow", "green" ]"#),
-    //     Ok((
-    //         "",
-    //         Array {
-    //             key: "red".to_string(),
-    //             value: ArrayValue {
-    //                 value: None,
-    //                 children: Some(vec![
-    //                     ArrayValue {
-    //                         value: Some(TomlValue::Str("red".to_string())),
-    //                         children: None,
-    //                     },
-    //                     ArrayValue {
-    //                         value: Some(TomlValue::Str("yellow".to_string())),
-    //                         children: None,
-    //                     },
-    //                     ArrayValue {
-    //                         value: Some(TomlValue::Str("green".to_string())),
-    //                         children: None,
-    //                     }
-    //                 ])
-    //             }
-    //         }
-    //     ))
-    // );
-    // }
+    #[test]
+    fn test_basic_string_array() {
+        println!("{:?}", array::<(&str, ErrorKind)>(r#"colors = [ "red", "yellow", "green" ]"#));
+        assert_eq!(
+            array::<(&str, ErrorKind)>(r#"colors = [ "red", "yellow", "green" ]"#),
+            Ok((
+                "",
+                Array {
+                    key: "colors".to_string(),
+                    value: ArrayValue {
+                        value: None,
+                        children: Some(vec![
+                            ArrayValue {
+                                value: Some(TomlValue::Str("red".to_string())),
+                                children: None,
+                            },
+                            ArrayValue {
+                                value: Some(TomlValue::Str("yellow".to_string())),
+                                children: None,
+                            },
+                            ArrayValue {
+                                value: Some(TomlValue::Str("green".to_string())),
+                                children: None,
+                            },
+                        ]),
+                    },
+                }
+            ))
+        );
+    }
 
-    // #[test]
-    // fn test_nested_mixed_array() {
-    //     println!("{:?}", array::<(&str, ErrorKind)>(r#"nested_mixed_array = [ [ 1, 2 ], ["a", "b", "c"] ]"#));
-    // }
-    //
+    #[test]
+    fn test_nested_mixed_array() {
+        println!("{:?}", array::<(&str, ErrorKind)>(r#"nested_mixed_array = [ [ 1, 2 ], ["a", "b", "c"] ]"#));
+    }
+
     // #[test]
     // fn test_different_string_types_array() {
     //     println!("{:?}", array::<(&str, ErrorKind)>(r#"string_array = [ "all", 'strings', """are the same""", '''type''' ]"#));

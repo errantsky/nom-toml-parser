@@ -127,4 +127,20 @@ mod tests_table {
             ))
         )
     }
+
+    #[test]
+    fn test_single_string_key_val_table() {
+        let input = read_to_string("assets/sing-string-table.toml").unwrap();
+
+        assert_eq!(
+            table::<(&str, ErrorKind)>(&input),
+            Ok((
+                "",
+                Table {
+                    header: "table-1".to_string(),
+                    key_val_vec: vec![KeyValue("key1".to_string(), TomlValue::Str(String::from("this is a string")))],
+                }
+            ))
+        )
+    }
 }

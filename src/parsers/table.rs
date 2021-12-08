@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, format, Formatter};
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
@@ -37,6 +37,18 @@ fn table_body<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::
 pub(crate) struct Table {
     header: String,
     key_val_vec: Vec<KeyValue>,
+}
+
+impl Display for Table {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut output = String::new();
+        output.push_str(&format!("Table: {}\n", &self.header));
+        for key_val in &self.key_val_vec {
+            output.push_str(&format!("\t{}: {}", key_val.0, key_val.1));
+        }
+
+        f.write_str(&output)
+    }
 }
 
 // ToDo: does terminate consume the termination slice?

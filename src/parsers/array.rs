@@ -1,6 +1,8 @@
+use std::fmt::{Display, Formatter};
+
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::combinator::map;
+use nom::combinator::{map, value};
 use nom::error::{FromExternalError, ParseError};
 use nom::IResult;
 use nom::multi::separated_list1;
@@ -23,6 +25,28 @@ use crate::parsers::whitespace::whitespace;
 pub(crate) struct Array {
     pub(crate) value: Option<TomlValue>,
     pub(crate) children: Option<Vec<Array>>,
+}
+
+impl Display for Array {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut output = String::new();
+        output.push_str(&format!("Array:\n"));
+        match &self.value {
+            Some(tv) => output.push_str(&format!("\t{}\n", &tv.to_string())),
+            None => {}
+        }
+        match &self.children {
+            Some(vec) => {
+                output.push_str("\t[\n");
+                for a in vec {
+                    output.push_str(&format!("\t\t{}\n", &a.to_string()));
+                }
+                output.push_str("\t]\n");
+            },
+            None => {}
+        }
+        f.write_str(&output)
+    }
 }
 
 /// Parses array items that are not arrays themselves

@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime};
 use nom::branch::alt;
 use nom::combinator::{map, opt};
@@ -65,6 +67,23 @@ pub(crate) enum TomlValue {
     InlineTable(Box<InlineTable>),
 }
 
+impl Display for TomlValue {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut output = String::new();
+        match self {
+            TomlValue::Str(s) => output.push_str(s),
+            TomlValue::Integer(i) => output.push_str(&i.to_string()),
+            TomlValue::Float(f) => output.push_str(&f.to_string()),
+            TomlValue::Boolean(b) => output.push_str(&b.to_string()),
+            TomlValue::Array(a) => output.push_str(&(*a.to_string())),
+            TomlValue::InlineTable(b) => output.push_str(&b.to_string()),
+            _ => {}
+        }
+        f.write_str(&output)
+    }
+}
+
+
 fn cargo_root<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(
     input: &'a str,
 ) -> IResult<&'a str, Vec<Table>, E> {
@@ -98,23 +117,23 @@ mod tests {
         let input = read_to_string("assets/cargo_examples/cargo-expand.toml").unwrap();
         println!("{:?}", cargo_root::<(&str, ErrorKind)>(&input));
     }
-
-    #[test]
-    // ToDo: inline comment
-    fn test_cargo_nom_locate() {
-        let input = read_to_string("assets/cargo_examples/nom-locate.toml").unwrap();
-        println!("{:?}", cargo_root::<(&str, ErrorKind)>(&input));
-    }
-
-    #[test]
-    fn test_cargo_nom_supreme() {
-        let input = read_to_string("assets/cargo_examples/nom-supreme.toml").unwrap();
-        println!("{:?}", cargo_root::<(&str, ErrorKind)>(&input));
-    }
-
-    #[test]
-    fn test_cargo_pyo3() {
-        let input = read_to_string("assets/cargo_examples/pyo3.toml").unwrap();
-        println!("{:?}", cargo_root::<(&str, ErrorKind)>(&input));
-    }
+    //
+    // #[test]
+    // // ToDo: inline comment
+    // fn test_cargo_nom_locate() {
+    //     let input = read_to_string("assets/cargo_examples/nom-locate.toml").unwrap();
+    //     println!("{:?}", cargo_root::<(&str, ErrorKind)>(&input));
+    // }
+    //
+    // #[test]
+    // fn test_cargo_nom_supreme() {
+    //     let input = read_to_string("assets/cargo_examples/nom-supreme.toml").unwrap();
+    //     println!("{:?}", cargo_root::<(&str, ErrorKind)>(&input));
+    // }
+    //
+    // #[test]
+    // fn test_cargo_pyo3() {
+    //     let input = read_to_string("assets/cargo_examples/pyo3.toml").unwrap();
+    //     println!("{:?}", cargo_root::<(&str, ErrorKind)>(&input));
+    // }
 }

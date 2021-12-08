@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::combinator::map;
@@ -14,6 +16,29 @@ use crate::parsers::whitespace::{sp, whitespace};
 pub(crate) struct InlineTable {
     value: Option<KeyValue>,
     children: Option<Vec<InlineTable>>,
+}
+
+impl Display for InlineTable {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut output = String::new();
+
+        match &self.value {
+            Some(key_val) => output.push_str(&format!("\t{}: {}", key_val.0, key_val.1)),
+            None => {}
+        }
+        match &self.children {
+            Some(vec) => {
+                output.push_str("\t[\n");
+                for it in vec {
+                    output.push_str(&format!("\t\t{}\n", &it.to_string()));
+                }
+                output.push_str("\t]\n");
+            },
+            None => {}
+        }
+
+        f.write_str(&output)
+    }
 }
 
 pub(crate) fn inline_key_val_pair<

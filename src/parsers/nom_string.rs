@@ -27,8 +27,8 @@ use nom::sequence::{delimited, preceded};
 /// hexadecimal numerals. We will combine this later with parse_escaped_char
 /// to parse sequences like \u{00AC}.
 fn parse_unicode<'a, E>(input: &'a str) -> IResult<&'a str, char, E>
-    where
-        E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
+where
+    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
     // `take_while_m_n` parses between `m` and `n` bytes (inclusive) that match
     // a predicate. `parse_hex` here parses between 1 and 6 hexadecimal numerals.

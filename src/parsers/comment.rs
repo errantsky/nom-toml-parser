@@ -1,7 +1,7 @@
 use nom::character::complete::{char, line_ending, not_line_ending};
 use nom::error::ParseError;
-use nom::sequence::{preceded, terminated};
 use nom::IResult;
+use nom::sequence::{preceded, terminated};
 
 /// A hash symbol marks the rest of the line as a comment, except when inside a string.
 /// ```Rust
@@ -16,7 +16,7 @@ use nom::IResult;
 /// ToDo: Test for control characters
 /// ToDo: Should the newline be consumed?
 /// ToDo: What if the comment is in the last line of the file?
-fn comment<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
+pub(crate) fn comment<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
     preceded(char('#'), terminated(not_line_ending, line_ending))(input)
 }
 

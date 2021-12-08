@@ -26,16 +26,19 @@ struct ArrayValue {
 }
 
 /// Stores an TOML array and the key assigned to it
-/// * `key` is the name of the array, as in "name = [1,2,3]"
 /// * `value` holds array data, which can include other arrays and `TomlValue`s
 #[derive(Debug, PartialEq)]
-struct Array {
-    key: String,
+pub(crate) struct Array {
     value: ArrayValue,
 }
 
 /// Parses array items that are not arrays themselves
-fn array_toml_value<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(input: &'a str) -> IResult<&'a str, ArrayValue, E> {
+fn array_toml_value<
+    'a,
+    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
+>(
+    input: &'a str,
+) -> IResult<&'a str, ArrayValue, E> {
     map(toml_value, |toml_val| ArrayValue {
         value: Some(toml_val),
         children: None,
@@ -45,7 +48,9 @@ fn array_toml_value<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std:
 // ToDo: A general way to handle whitespace
 // ToDo: Test single entry or empty arrays, with extraneous commas
 /// A recursive parser to parses the right side of a TOML array definition such as "name = [1,2,3]"
-fn array_value<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(input: &'a str) -> IResult<&'a str, ArrayValue, E> {
+fn array_value<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(
+    input: &'a str,
+) -> IResult<&'a str, ArrayValue, E> {
     map(
         delimited(
             pair(tag("["), whitespace),
@@ -64,14 +69,15 @@ fn array_value<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num:
 }
 
 /// Parses a TOML array definition such as "name = [1,2,3]"
-fn array<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(input: &'a str) -> IResult<&'a str, Array, E> {
-    map(
-        separated_pair(key, tuple((whitespace, tag("="), whitespace)), array_value),
-        |(k, v)| Array {
-            key: k.to_string(),
-            value: v,
-        },
-    )(input)
+pub(crate) fn array<
+    'a,
+    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
+>(
+    input: &'a str,
+) -> IResult<&'a str, TomlValue, E> {
+    map(array_value, |v| {
+        TomlValue::Array(Box::new(Array { value: v }))
+    })(input)
 }
 
 #[cfg(test)]
@@ -137,29 +143,28 @@ mod tests_array {
     #[test]
     fn test_integer_array() {
         assert_eq!(
-            array::<(&str, ErrorKind)>("integers = [ 1, 2, 3 ]"),
+            array::<(&str, ErrorKind)>("[ 1, 2, 3 ]"),
             Ok((
                 "",
-                Array {
-                    key: "integers".to_string(),
+                TomlValue::Array(Box::new(Array {
                     value: ArrayValue {
                         value: None,
                         children: Some(vec![
                             ArrayValue {
                                 value: Some(TomlValue::Integer(1)),
-                                children: None
+                                children: None,
                             },
                             ArrayValue {
                                 value: Some(TomlValue::Integer(2)),
-                                children: None
+                                children: None,
                             },
                             ArrayValue {
                                 value: Some(TomlValue::Integer(3)),
-                                children: None
+                                children: None,
                             },
-                        ])
+                        ]),
                     }
-                }
+                }))
             ))
         );
     }
@@ -168,29 +173,28 @@ mod tests_array {
     fn test_float_array() {
         // Test with an extra comma at the end
         assert_eq!(
-            array::<(&str, ErrorKind)>("floats = [ 0.1, 0.2, 0.5]"),
+            array::<(&str, ErrorKind)>("[ 0.1, 0.2, 0.5]"),
             Ok((
                 "",
-                Array {
-                    key: "floats".to_string(),
+                TomlValue::Array(Box::new(Array {
                     value: ArrayValue {
                         value: None,
                         children: Some(vec![
                             ArrayValue {
                                 value: Some(TomlValue::Float(0.1)),
-                                children: None
+                                children: None,
                             },
                             ArrayValue {
                                 value: Some(TomlValue::Float(0.2)),
-                                children: None
+                                children: None,
                             },
                             ArrayValue {
                                 value: Some(TomlValue::Float(0.5)),
-                                children: None
+                                children: None,
                             },
-                        ])
+                        ]),
                     }
-                }
+                }))
             ))
         );
     }
@@ -199,17 +203,16 @@ mod tests_array {
     fn test_mixed_integer_float_array() {
         // Test with an extra comma at the end
         assert_eq!(
-            array::<(&str, ErrorKind)>("numbers = [ 0.1, 0.2, 0.5, 1, 2, 5 ]"),
+            array::<(&str, ErrorKind)>("[ 0.1, 0.2, 0.5, 1, 2, 5 ]"),
             Ok((
                 "",
-                Array {
-                    key: "numbers".to_string(),
+                TomlValue::Array(Box::new(Array {
                     value: ArrayValue {
                         value: None,
                         children: Some(vec![
                             ArrayValue {
                                 value: Some(TomlValue::Float(0.1)),
-                                children: None
+                                children: None,
                             },
                             ArrayValue {
                                 value: Some(TomlValue::Float(0.2)),
@@ -225,15 +228,15 @@ mod tests_array {
                             },
                             ArrayValue {
                                 value: Some(TomlValue::Integer(2)),
-                                children: None
+                                children: None,
                             },
                             ArrayValue {
                                 value: Some(TomlValue::Integer(5)),
-                                children: None
+                                children: None,
                             },
                         ])
                     }
-                }
+                }))
             ))
         );
     }
@@ -241,11 +244,10 @@ mod tests_array {
     #[test]
     fn test_nested_integer_array() {
         assert_eq!(
-            array::<(&str, ErrorKind)>("nested_arrays_of_ints = [ [ 1, 2 ], [3, 4, 5] ]"),
+            array::<(&str, ErrorKind)>("[ [ 1, 2 ], [3, 4, 5] ]"),
             Ok((
                 "",
-                Array {
-                    key: "nested_arrays_of_ints".to_string(),
+                TomlValue::Array(Box::new(Array {
                     value: ArrayValue {
                         value: None,
                         children: Some(vec![
@@ -254,7 +256,7 @@ mod tests_array {
                                 children: Some(vec![
                                     ArrayValue {
                                         value: Some(TomlValue::Integer(1)),
-                                        children: None
+                                        children: None,
                                     },
                                     ArrayValue {
                                         value: Some(TomlValue::Integer(2)),
@@ -281,7 +283,7 @@ mod tests_array {
                             },
                         ])
                     }
-                }
+                }))
             ))
         );
     }
@@ -315,13 +317,11 @@ mod tests_array {
 
     #[test]
     fn test_basic_string_array() {
-        println!("{:?}", array::<(&str, ErrorKind)>(r#"colors = [ "red", "yellow", "green" ]"#));
         assert_eq!(
-            array::<(&str, ErrorKind)>(r#"colors = [ "red", "yellow", "green" ]"#),
+            array::<(&str, ErrorKind)>(r#"[ "red", "yellow", "green" ]"#),
             Ok((
                 "",
-                Array {
-                    key: "colors".to_string(),
+                TomlValue::Array(Box::new(Array {
                     value: ArrayValue {
                         value: None,
                         children: Some(vec![
@@ -339,14 +339,17 @@ mod tests_array {
                             },
                         ]),
                     },
-                }
+                }))
             ))
         );
     }
 
     #[test]
     fn test_nested_mixed_array() {
-        println!("{:?}", array::<(&str, ErrorKind)>(r#"nested_mixed_array = [ [ 1, 2 ], ["a", "b", "c"] ]"#));
+        println!(
+            "{:?}",
+            array::<(&str, ErrorKind)>(r#"[ [ 1, 2 ], ["a", "b", "c"] ]"#)
+        );
     }
 
     // #[test]

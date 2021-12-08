@@ -36,7 +36,10 @@ pub(crate) fn key<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str
 
 // ToDo: If key and sub-parsers deal with whitespace, this code can be simplified
 // ToDo: Some key value pairs can be defined in multiple lines
-pub(crate) fn key_val_pair<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(
+pub(crate) fn key_val_pair<
+    'a,
+    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
+>(
     input: &'a str,
 ) -> IResult<&'a str, KeyValue, E> {
     map(
@@ -78,7 +81,13 @@ mod tests_key_value {
         );
         assert_eq!(
             key_val_pair::<(&str, ErrorKind)>(r#"key = "This is a string""#),
-            Ok(("", KeyValue("key".to_string(), TomlValue::Str(String::from("This is a string")))))
+            Ok((
+                "",
+                KeyValue(
+                    "key".to_string(),
+                    TomlValue::Str(String::from("This is a string")),
+                )
+            ))
         );
     }
 }

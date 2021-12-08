@@ -1,12 +1,13 @@
 use chrono::{DateTime, FixedOffset};
 use nom::branch::alt;
-use nom::error::ParseError;
+use nom::combinator::map;
+use nom::error::{FromExternalError, ParseError};
 use nom::IResult;
 
 use boolean::boolean;
 use float::float;
 use integer::integer;
-use string::string;
+use nom_string::parse_string;
 
 mod array;
 mod boolean;
@@ -18,13 +19,14 @@ mod key_value;
 mod string;
 mod table;
 mod whitespace;
+mod nom_string;
 
 // ToDo: find out how test files should be organized
 // ToDo: should common imports be declared at the mod.rs file?
 // ToDo: add documentation
 
-fn toml_value<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, TomlValue, E> {
-    alt((float, integer, boolean, string))(input)
+fn toml_value<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(input: &'a str) -> IResult<&'a str, TomlValue, E> {
+    alt((float, integer, boolean, map(parse_string, |s| TomlValue::Str(s))))(input)
 }
 
 #[derive(Debug, PartialEq)]

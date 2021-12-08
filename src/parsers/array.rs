@@ -1,7 +1,7 @@
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::combinator::map;
-use nom::error::ParseError;
+use nom::error::{FromExternalError, ParseError};
 use nom::IResult;
 use nom::multi::separated_list1;
 use nom::sequence::{delimited, pair, separated_pair, tuple};
@@ -35,7 +35,7 @@ struct Array {
 }
 
 /// Parses array items that are not arrays themselves
-fn array_toml_value<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, ArrayValue, E> {
+fn array_toml_value<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(input: &'a str) -> IResult<&'a str, ArrayValue, E> {
     map(toml_value, |toml_val| ArrayValue {
         value: Some(toml_val),
         children: None,
@@ -45,7 +45,7 @@ fn array_toml_value<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a s
 // ToDo: A general way to handle whitespace
 // ToDo: Test single entry or empty arrays, with extraneous commas
 /// A recursive parser to parses the right side of a TOML array definition such as "name = [1,2,3]"
-fn array_value<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, ArrayValue, E> {
+fn array_value<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(input: &'a str) -> IResult<&'a str, ArrayValue, E> {
     map(
         delimited(
             pair(tag("["), whitespace),
@@ -64,7 +64,7 @@ fn array_value<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, A
 }
 
 /// Parses a TOML array definition such as "name = [1,2,3]"
-fn array<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, Array, E> {
+fn array<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(input: &'a str) -> IResult<&'a str, Array, E> {
     map(
         separated_pair(key, tuple((whitespace, tag("="), whitespace)), array_value),
         |(k, v)| Array {

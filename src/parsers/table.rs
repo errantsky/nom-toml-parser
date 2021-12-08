@@ -2,7 +2,7 @@ use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::line_ending;
 use nom::combinator::{eof, map};
-use nom::error::ParseError;
+use nom::error::{FromExternalError, ParseError};
 use nom::IResult;
 use nom::multi::{many0, many1, separated_list0, separated_list1};
 use nom::sequence::{delimited, pair, preceded, terminated};
@@ -19,7 +19,7 @@ fn table_header<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, 
 /// Key value pairs can be separated and delimited by a variable number of
 /// newlines (`\n` or `\r\n`). The last key pair can also have no newline
 ///  or eof as that can be taken by `table` parser.
-fn table_body<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, Vec<KeyValue>, E> {
+fn table_body<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(input: &'a str) -> IResult<&'a str, Vec<KeyValue>, E> {
     terminated(
         many0(preceded(many0(line_ending), key_val_pair)),
         many0(line_ending),
@@ -33,7 +33,7 @@ struct Table {
 }
 
 // ToDo: does terminate consume the termination slice?
-fn table<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, Table, E> {
+fn table<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(input: &'a str) -> IResult<&'a str, Table, E> {
     map(
         terminated(pair(table_header, table_body), alt((eof, table_header))),
         |(header, key_val_vec)| {

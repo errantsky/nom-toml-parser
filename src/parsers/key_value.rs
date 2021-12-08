@@ -2,7 +2,7 @@ use nom::branch::alt;
 use nom::bytes::complete::{is_a, tag};
 use nom::character::complete::line_ending;
 use nom::combinator::{eof, map, recognize};
-use nom::error::ParseError;
+use nom::error::{FromExternalError, ParseError};
 use nom::IResult;
 use nom::multi::separated_list1;
 use nom::sequence::{delimited, pair, preceded, separated_pair, terminated, tuple};
@@ -36,7 +36,7 @@ pub(crate) fn key<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str
 
 // ToDo: If key and sub-parsers deal with whitespace, this code can be simplified
 // ToDo: Some key value pairs can be defined in multiple lines
-pub(crate) fn key_val_pair<'a, E: ParseError<&'a str>>(
+pub(crate) fn key_val_pair<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>>(
     input: &'a str,
 ) -> IResult<&'a str, KeyValue, E> {
     map(

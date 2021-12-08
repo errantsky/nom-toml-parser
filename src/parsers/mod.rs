@@ -1,4 +1,4 @@
-use chrono::{DateTime, FixedOffset};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, NaiveTime};
 use nom::branch::alt;
 use nom::combinator::map;
 use nom::error::{FromExternalError, ParseError};
@@ -36,9 +36,9 @@ pub(crate) enum TomlValue {
     Float(f64),
     Boolean(bool),
     OffsetDateTime(DateTime<FixedOffset>),
-    LocalDateTime,
-    LocalDate,
-    LocalTime,
+    LocalDateTime(NaiveDateTime),
+    LocalDate(NaiveDate),
+    LocalTime(NaiveTime),
     // Array,
     // InlineTable,
 }

@@ -117,8 +117,8 @@ enum StringFragment<'a> {
 /// Combine parse_literal, parse_escaped_whitespace, and parse_escaped_char
 /// into a StringFragment.
 fn parse_fragment<'a, E>(input: &'a str) -> IResult<&'a str, StringFragment<'a>, E>
-    where
-        E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
+where
+    E: ParseError<&'a str> + FromExternalError<&'a str, std::num::ParseIntError>,
 {
     alt((
         // The `map` combinator runs a parser, then applies a function to the output

@@ -30,19 +30,19 @@ pub(crate) struct Array {
 impl Display for Array {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut output = String::new();
-        output.push_str(&format!("Array:\n"));
         match &self.value {
-            Some(tv) => output.push_str(&format!("\t{}\n", &tv.to_string())),
+            Some(tv) => output.push_str(&format!("\t{}", &tv.to_string())),
             None => {}
         }
         match &self.children {
             Some(vec) => {
+                output.push_str(&format!("Array:\n"));
                 output.push_str("\t[\n");
                 for a in vec {
-                    output.push_str(&format!("\t\t{}\n", &a.to_string()));
+                    output.push_str(&format!("\t{},\n", &a.to_string()));
                 }
                 output.push_str("\t]\n");
-            },
+            }
             None => {}
         }
         f.write_str(&output)

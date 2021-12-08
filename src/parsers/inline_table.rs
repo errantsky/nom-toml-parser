@@ -33,7 +33,7 @@ impl Display for InlineTable {
                     output.push_str(&format!("\t\t{}\n", &it.to_string()));
                 }
                 output.push_str("\t]\n");
-            },
+            }
             None => {}
         }
 

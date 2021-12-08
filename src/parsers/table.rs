@@ -14,7 +14,7 @@ use crate::parsers::comment::comment;
 use crate::parsers::key_value::{key, key_val_pair, KeyValue};
 use crate::parsers::whitespace::{sp, whitespace};
 
-// ToDo: Fix string key val support
+// ToDo: Test for inline comment on table headers
 
 fn table_header<'a, E: ParseError<&'a str>>(input: &'a str) -> IResult<&'a str, &'a str, E> {
     terminated(delimited(tag("["), key, tag("]")), alt((line_ending, eof)))(input)
@@ -35,8 +35,8 @@ fn table_body<'a, E: ParseError<&'a str> + FromExternalError<&'a str, std::num::
 
 #[derive(Debug, PartialEq)]
 pub(crate) struct Table {
-    header: String,
-    key_val_vec: Vec<KeyValue>,
+    pub(crate) header: String,
+    pub(crate) key_val_vec: Vec<KeyValue>,
 }
 
 impl Display for Table {
@@ -44,7 +44,7 @@ impl Display for Table {
         let mut output = String::new();
         output.push_str(&format!("Table: {}\n", &self.header));
         for key_val in &self.key_val_vec {
-            output.push_str(&format!("\t{}: {}", key_val.0, key_val.1));
+            output.push_str(&format!("\t{}: {}\n", key_val.0, key_val.1));
         }
 
         f.write_str(&output)
